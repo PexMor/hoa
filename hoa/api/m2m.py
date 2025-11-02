@@ -2,7 +2,7 @@
 Machine-to-Machine (M2M) API endpoints for JWT token management.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -32,25 +32,25 @@ def create_jwt_token(
     """Create JWT access and refresh tokens for current user."""
     settings = get_settings()
     jwt_service = JWTService(settings, db)
-    
+
     # Custom expiration if provided
     expires_delta = None
     if data.expires_in_minutes:
         expires_delta = timedelta(minutes=data.expires_in_minutes)
-    
+
     # Create tokens
     access_token, access_expires_at = jwt_service.create_access_token(
         current_user.id, expires_delta
     )
     refresh_token, refresh_expires_at = jwt_service.create_refresh_token(current_user.id)
-    
+
     # Calculate expires_in (seconds)
     expires_in = int(
-        (access_expires_at - datetime.utcnow()).total_seconds()
+        (access_expires_at - datetime.now(UTC)).total_seconds()
         if expires_delta
         else settings.jwt_expiration_minutes * 60
     )
-    
+
     return JWTTokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -68,7 +68,7 @@ def refresh_jwt_token(
     """Refresh JWT tokens using a refresh token."""
     settings = get_settings()
     jwt_service = JWTService(settings, db)
-    
+
     # Validate refresh token
     user_id = jwt_service.get_user_id_from_token(data.refresh_token)
     if not user_id:
@@ -76,13 +76,13 @@ def refresh_jwt_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
-    
+
     # Create new tokens
     access_token, access_expires_at = jwt_service.create_access_token(user_id)
     refresh_token, refresh_expires_at = jwt_service.create_refresh_token(user_id)
-    
+
     expires_in = settings.jwt_expiration_minutes * 60
-    
+
     return JWTTokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -100,15 +100,15 @@ def validate_jwt_token(
     """Validate a JWT token and return information about it."""
     settings = get_settings()
     jwt_service = JWTService(settings, db)
-    
+
     payload = jwt_service.validate_token(data.token, token_type="access")
-    
+
     if not payload:
         return TokenValidateResponse(
             valid=False,
             error="Invalid or expired token",
         )
-    
+
     return TokenValidateResponse(
         valid=True,
         user_id=payload.get("sub"),

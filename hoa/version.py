@@ -2,7 +2,7 @@
 Version information for HOA.
 """
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 __version__ = "1.0.0"
@@ -37,7 +37,7 @@ def get_git_branch() -> str:
 
 def get_build_date() -> str:
     """Get build date (current date for development)."""
-    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 def get_version_info() -> dict:
     """Get complete version information."""

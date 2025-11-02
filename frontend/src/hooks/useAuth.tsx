@@ -9,6 +9,7 @@ import { useContext, useState, useEffect } from 'preact/hooks';
 import type { User, UserCreate } from '../types';
 import { api } from '../services/api';
 import { startRegistration, startAuthentication } from '../services/webauthn';
+import { getConfig } from '../config';
 
 // ===== Types =====
 
@@ -52,18 +53,40 @@ export function AuthProvider({ children }: { children: any }) {
 
   const register = async (userData: UserCreate) => {
     try {
+      // Get config for rp_id and origin
+      const config = getConfig();
+      const rp = config.allowed_rps[0]; // Use first RP
+      const origin = window.location.origin;
+
+      console.log('[AUTH] Starting registration for:', userData.email);
+      
       // Step 1: Begin registration (get WebAuthn options)
-      const { options, user_id } = await api.auth.registerBegin(userData);
+      const { options, user_id } = await api.auth.registerBegin({
+        rp_id: rp.rp_id,
+        origin: origin,
+        display_name: userData.first_name || userData.nick,
+        username_hint: userData.email || userData.nick,
+      });
+      
+      console.log('[AUTH] Got challenge, user_id:', user_id, 'challenge:', options.challenge.substring(0, 20) + '...');
 
       // Step 2: Create WebAuthn credential
+      console.log('[AUTH] Creating WebAuthn credential...');
       const credential = await startRegistration(options);
+      console.log('[AUTH] Credential created, id:', credential.id);
 
-      // Step 3: Finish registration
+      // Step 3: Finish registration (send user data and credential)
+      console.log('[AUTH] Finishing registration...');
       const response = await api.auth.registerFinish({
+        rp_id: rp.rp_id,
+        origin: origin,
         user_id,
         credential,
+        name: userData.first_name,
+        email: userData.email,
       });
 
+      console.log('[AUTH] Registration complete!');
       setUser(response.user);
     } catch (error) {
       console.error('Registration failed:', error);
@@ -73,14 +96,27 @@ export function AuthProvider({ children }: { children: any }) {
 
   const login = async (identifier: string) => {
     try {
+      // Get config for rp_id and origin
+      const config = getConfig();
+      const rp = config.allowed_rps[0]; // Use first RP
+      const origin = window.location.origin;
+
       // Step 1: Begin authentication (get WebAuthn options)
-      const { options } = await api.auth.loginBegin(identifier);
+      const { options } = await api.auth.loginBegin({
+        rp_id: rp.rp_id,
+        origin: origin,
+        email: identifier,
+      });
 
       // Step 2: Get WebAuthn credential
       const credential = await startAuthentication(options);
 
       // Step 3: Finish authentication
-      const response = await api.auth.loginFinish(credential);
+      const response = await api.auth.loginFinish({
+        rp_id: rp.rp_id,
+        origin: origin,
+        credential,
+      });
 
       setUser(response.user);
     } catch (error) {

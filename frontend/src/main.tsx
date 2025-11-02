@@ -5,6 +5,7 @@
 import { render } from 'preact';
 import { App } from './app';
 import { setApiBaseUrl } from './services/api';
+import { loadConfig } from './config';
 
 // Import styles
 import './styles/main.css';
@@ -12,9 +13,8 @@ import './styles/main.css';
 // Load config and initialize
 async function init() {
   try {
-    // Try to load config.json
-    const response = await fetch('/config.json');
-    const config = await response.json();
+    // Load config using the config module
+    const config = await loadConfig();
     
     // Set API base URL from config
     if (config.api_base_url) {
@@ -23,7 +23,7 @@ async function init() {
     
     console.log('Loaded config:', config);
   } catch (error) {
-    console.warn('Failed to load config.json, using defaults:', error);
+    console.warn('Failed to load config, using defaults:', error);
     // Use default API base URL
     setApiBaseUrl('/api');
   }

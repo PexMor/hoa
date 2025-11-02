@@ -6,7 +6,6 @@
 
 import type {
   User,
-  UserCreate,
   UserUpdate,
   AuthMethod,
   JWTTokenResponse,
@@ -126,36 +125,53 @@ export const authAPI = {
   /**
    * Begin WebAuthn registration
    */
-  registerBegin: (userData: UserCreate) =>
+  registerBegin: (data: {
+    rp_id: string;
+    origin: string;
+    display_name?: string;
+    username_hint?: string;
+  }) =>
     post<{ options: RegistrationOptions; user_id: string }>(
       '/auth/webauthn/register/begin',
-      userData
+      data
     ),
 
   /**
    * Complete WebAuthn registration
    */
   registerFinish: (data: {
+    rp_id: string;
+    origin: string;
     user_id: string;
     credential: RegistrationCredential;
+    name?: string;
+    email?: string;
   }) => post<{ user: User; session_id: string }>('/auth/webauthn/register/finish', data),
 
   /**
    * Begin WebAuthn authentication
    */
-  loginBegin: (identifier: string) =>
+  loginBegin: (data: {
+    rp_id: string;
+    origin: string;
+    email?: string;
+  }) =>
     post<{ options: AuthenticationOptions }>(
       '/auth/webauthn/login/begin',
-      { identifier }
+      data
     ),
 
   /**
    * Complete WebAuthn authentication
    */
-  loginFinish: (credential: AuthenticationCredential) =>
+  loginFinish: (data: {
+    rp_id: string;
+    origin: string;
+    credential: AuthenticationCredential;
+  }) =>
     post<{ user: User; session_id: string }>(
       '/auth/webauthn/login/finish',
-      { credential }
+      data
     ),
 
   /**
@@ -196,6 +212,38 @@ export const userAPI = {
    */
   deleteAuthMethod: (authMethodId: string) =>
     del<{ ok: boolean; message: string }>(`/users/me/auth-methods/${authMethodId}`),
+
+  /**
+   * Add password authentication method
+   */
+  addPasswordAuth: (password: string, identifier?: string) =>
+    post<AuthMethod>('/users/me/auth-methods/password', { password, identifier }),
+
+  /**
+   * Begin adding a new passkey
+   */
+  beginAddPasskey: (data: { rp_id: string; origin: string; display_name?: string }) =>
+    post<{ options: RegistrationOptions }>('/users/me/auth-methods/passkey/begin', data),
+
+  /**
+   * Finish adding a new passkey
+   */
+  finishAddPasskey: (data: { rp_id: string; origin: string; credential: RegistrationCredential }) =>
+    post<AuthMethod>('/users/me/auth-methods/passkey/finish', data),
+
+  /**
+   * Create an API token
+   */
+  createApiToken: (description: string, expiresInDays?: number) =>
+    post<{
+      auth_method: AuthMethod;
+      access_token: string;
+      refresh_token: string;
+      expires_at: string;
+    }>('/users/me/auth-methods/token/create', {
+      description,
+      expires_in_days: expiresInDays,
+    }),
 };
 
 // ===== M2M API =====

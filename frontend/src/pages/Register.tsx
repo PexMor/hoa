@@ -4,7 +4,7 @@
  * New user registration with passkey creation
  */
 
-import { useState } from 'preact/hooks';
+import { useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import { useAuth } from '../hooks/useAuth';
 import { isWebAuthnSupported } from '../services/webauthn';
@@ -28,6 +28,7 @@ export function Register(_props?: RouteProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [webAuthnSupported] = useState(isWebAuthnSupported());
+  const submittingRef = useRef(false);
 
   const handleInputChange = (field: keyof RegisterFormData, value: string) => {
     setFormData((prev) => ({
@@ -38,6 +39,12 @@ export function Register(_props?: RouteProps) {
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (submittingRef.current) {
+      console.log('[DEBUG] Preventing duplicate submission');
+      return;
+    }
     
     // Validation
     if (!formData.nick.trim()) {
@@ -59,6 +66,7 @@ export function Register(_props?: RouteProps) {
 
     setError(null);
     setIsLoading(true);
+    submittingRef.current = true;
 
     try {
       // Register user and create passkey
@@ -87,6 +95,7 @@ export function Register(_props?: RouteProps) {
       }
     } finally {
       setIsLoading(false);
+      submittingRef.current = false;
     }
   };
 

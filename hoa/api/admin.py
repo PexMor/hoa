@@ -35,7 +35,7 @@ def list_users(
     """List all users (admin only)."""
     user_service = UserService(db)
     users = user_service.list_all(enabled_only=enabled_only, offset=offset, limit=limit)
-    
+
     return [UserResponse.model_validate(u) for u in users]
 
 
@@ -48,13 +48,13 @@ def get_user(
     """Get user by ID (admin only)."""
     user_service = UserService(db)
     user = user_service.get_by_id(user_id)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     return UserResponse.model_validate(user)
 
 
@@ -68,13 +68,13 @@ def toggle_user(
     """Toggle user enabled status (admin only)."""
     user_service = UserService(db)
     user = user_service.toggle_enabled(user_id, data.enabled)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     return {"ok": True, "message": f"User {'enabled' if data.enabled else 'disabled'}"}
 
 
@@ -87,9 +87,9 @@ def get_user_auth_methods(
     """Get user's authentication methods (admin only)."""
     settings = get_settings()
     auth_method_service = AuthMethodService(db, settings)
-    
+
     auth_methods = auth_method_service.get_user_auth_methods(user_id)
-    
+
     return [AuthMethodResponse.model_validate(am) for am in auth_methods]
 
 
@@ -103,19 +103,19 @@ def approve_auth_method(
     """Approve or reject an authentication method (admin only)."""
     settings = get_settings()
     auth_method_service = AuthMethodService(db, settings)
-    
+
     auth_method = auth_method_service.approve(
         auth_method_id,
         current_user.id,
         data.approved
     )
-    
+
     if not auth_method:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Authentication method not found",
         )
-    
+
     return {
         "ok": True,
         "message": f"Authentication method {'approved' if data.approved else 'rejected'}"
@@ -132,15 +132,15 @@ def toggle_auth_method(
     """Toggle authentication method enabled status (admin only)."""
     settings = get_settings()
     auth_method_service = AuthMethodService(db, settings)
-    
+
     auth_method = auth_method_service.toggle_enabled(auth_method_id, data.enabled)
-    
+
     if not auth_method:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Authentication method not found",
         )
-    
+
     return {
         "ok": True,
         "message": f"Authentication method {'enabled' if data.enabled else 'disabled'}"
@@ -156,8 +156,8 @@ def get_pending_approvals(
     """Get authentication methods pending approval (admin only)."""
     settings = get_settings()
     auth_method_service = AuthMethodService(db, settings)
-    
+
     pending = auth_method_service.get_pending_approvals(limit=limit)
-    
+
     return [AuthMethodResponse.model_validate(am) for am in pending]
 

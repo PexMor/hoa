@@ -5,11 +5,14 @@ Based on the Duo Labs webauthn library, supporting multi-RP and multi-origin.
 """
 
 import base64
-import secrets
-from typing import Optional
 
-from webauthn import generate_authentication_options, generate_registration_options, verify_authentication_response, verify_registration_response
-from webauthn.helpers import bytes_to_base64url
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
 from webauthn.helpers.structs import (
     AttestationConveyancePreference,
     AuthenticationCredential,
@@ -25,19 +28,19 @@ from hoa.config import Settings
 
 class WebAuthnService:
     """Service for WebAuthn/Passkey operations."""
-    
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self.allowed_rps = settings.parsed_rps
-    
-    def get_rp_for(self, rp_id: str, origin: str) -> Optional[dict]:
+
+    def get_rp_for(self, rp_id: str, origin: str) -> dict | None:
         """
         Get RP configuration for given rp_id and origin.
-        
+
         Args:
             rp_id: Relying Party ID
             origin: Origin URL
-        
+
         Returns:
             RP configuration dict if valid, None otherwise
         """
@@ -45,7 +48,7 @@ class WebAuthnService:
             if rp["rp_id"] == rp_id and origin in rp["origins"]:
                 return rp
         return None
-    
+
     def begin_registration(
         self,
         rp_id: str,
@@ -53,11 +56,11 @@ class WebAuthnService:
         user_id: str,
         username: str,
         display_name: str,
-        exclude_credentials: Optional[list[str]] = None
+        exclude_credentials: list[str] | None = None
     ) -> tuple[dict, str]:
         """
         Begin WebAuthn registration ceremony.
-        
+
         Args:
             rp_id: Relying Party ID
             origin: Origin URL
@@ -65,14 +68,14 @@ class WebAuthnService:
             username: Username
             display_name: Display name
             exclude_credentials: List of credential IDs to exclude
-        
+
         Returns:
             Tuple of (registration options dict, challenge string)
         """
         rp = self.get_rp_for(rp_id, origin)
         if not rp:
             raise ValueError(f"Invalid RP/origin combination: {rp_id}/{origin}")
-        
+
         # Convert excluded credential IDs to proper format
         excluded_creds = []
         if exclude_credentials:
@@ -85,7 +88,7 @@ class WebAuthnService:
                     )
                 except Exception:
                     pass  # Skip invalid credential IDs
-        
+
         # Generate registration options
         options = generate_registration_options(
             rp_id=rp["rp_id"],
@@ -101,10 +104,10 @@ class WebAuthnService:
             attestation=AttestationConveyancePreference.NONE,
             timeout=60000,
         )
-        
+
         # Store challenge for verification
         challenge = bytes_to_base64url(options.challenge)
-        
+
         # Convert to dict for JSON serialization
         options_dict = {
             "rp": {
@@ -136,9 +139,9 @@ class WebAuthnService:
             },
             "attestation": options.attestation.value,
         }
-        
+
         return options_dict, challenge
-    
+
     def finish_registration(
         self,
         credential: dict,
@@ -148,67 +151,66 @@ class WebAuthnService:
     ) -> dict:
         """
         Finish WebAuthn registration ceremony.
-        
+
         Args:
             credential: Credential response from client
             expected_challenge: Expected challenge (from begin_registration)
             expected_rp_id: Expected RP ID
             expected_origin: Expected origin
-        
+
         Returns:
             Dict with credential information
         """
         rp = self.get_rp_for(expected_rp_id, expected_origin)
         if not rp:
             raise ValueError(f"Invalid RP/origin combination: {expected_rp_id}/{expected_origin}")
-        
-        # Parse credential response
-        try:
-            reg_credential = RegistrationCredential.parse_raw(credential)
-        except Exception as e:
-            raise ValueError(f"Invalid credential format: {e}")
-        
-        # Verify registration response
+
+        # Verify registration response (credential can be dict, str, or RegistrationCredential)
         try:
             verification = verify_registration_response(
-                credential=reg_credential,
-                expected_challenge=bytes(expected_challenge, "utf-8"),
+                credential=credential,
+                expected_challenge=base64url_to_bytes(expected_challenge),
                 expected_rp_id=expected_rp_id,
                 expected_origin=expected_origin,
                 require_user_verification=False,
             )
         except Exception as e:
-            raise ValueError(f"Registration verification failed: {e}")
-        
+            raise ValueError(f"Registration verification failed: {e}") from e
+
         # Return credential information
+        # Extract transports from credential if available
+        transports = []
+        if isinstance(credential, dict):
+            transports = credential.get("response", {}).get("transports", [])
+        
         return {
             "credential_id": bytes_to_base64url(verification.credential_id),
             "public_key": base64.b64encode(verification.credential_public_key).decode(),
             "sign_count": verification.sign_count,
-            "transports": reg_credential.response.transports or [],
+            "transports": transports,
         }
-    
+
     def begin_authentication(
         self,
         rp_id: str,
         origin: str,
-        allow_credentials: Optional[list[str]] = None
+        allow_credentials: list[str] | None = None
     ) -> tuple[dict, str]:
         """
         Begin WebAuthn authentication ceremony.
-        
+
         Args:
             rp_id: Relying Party ID
             origin: Origin URL
             allow_credentials: List of allowed credential IDs (optional)
-        
+
         Returns:
             Tuple of (authentication options dict, challenge string)
         """
         rp = self.get_rp_for(rp_id, origin)
         if not rp:
             raise ValueError(f"Invalid RP/origin combination: {rp_id}/{origin}")
-        
+
         # Convert allowed credential IDs to proper format
         allowed_creds = []
         if allow_credentials:
@@ -221,7 +223,7 @@ class WebAuthnService:
                     )
                 except Exception:
                     pass  # Skip invalid credential IDs
-        
+
         # Generate authentication options
         options = generate_authentication_options(
             rp_id=rp["rp_id"],
@@ -229,10 +231,10 @@ class WebAuthnService:
             user_verification=UserVerificationRequirement.PREFERRED,
             timeout=60000,
         )
-        
+
         # Store challenge for verification
         challenge = bytes_to_base64url(options.challenge)
-        
+
         # Convert to dict for JSON serialization
         options_dict = {
             "challenge": challenge,
@@ -248,9 +250,9 @@ class WebAuthnService:
             "timeout": options.timeout,
             "userVerification": options.user_verification.value,
         }
-        
+
         return options_dict, challenge
-    
+
     def finish_authentication(
         self,
         credential: dict,
@@ -262,7 +264,7 @@ class WebAuthnService:
     ) -> dict:
         """
         Finish WebAuthn authentication ceremony.
-        
+
         Args:
             credential: Credential response from client
             expected_challenge: Expected challenge (from begin_authentication)
@@ -270,31 +272,25 @@ class WebAuthnService:
             expected_origin: Expected origin
             credential_public_key: Stored public key (base64 encoded)
             credential_current_sign_count: Current sign count
-        
+
         Returns:
             Dict with authentication result and new sign count
         """
         rp = self.get_rp_for(expected_rp_id, expected_origin)
         if not rp:
             raise ValueError(f"Invalid RP/origin combination: {expected_rp_id}/{expected_origin}")
-        
-        # Parse credential response
-        try:
-            auth_credential = AuthenticationCredential.parse_raw(credential)
-        except Exception as e:
-            raise ValueError(f"Invalid credential format: {e}")
-        
+
         # Decode public key
         try:
             public_key_bytes = base64.b64decode(credential_public_key)
         except Exception as e:
-            raise ValueError(f"Invalid public key format: {e}")
-        
-        # Verify authentication response
+            raise ValueError(f"Invalid public key format: {e}") from e
+
+        # Verify authentication response (credential can be dict, str, or AuthenticationCredential)
         try:
             verification = verify_authentication_response(
-                credential=auth_credential,
-                expected_challenge=bytes(expected_challenge, "utf-8"),
+                credential=credential,
+                expected_challenge=base64url_to_bytes(expected_challenge),
                 expected_rp_id=expected_rp_id,
                 expected_origin=expected_origin,
                 credential_public_key=public_key_bytes,
@@ -302,11 +298,11 @@ class WebAuthnService:
                 require_user_verification=False,
             )
         except Exception as e:
-            raise ValueError(f"Authentication verification failed: {e}")
-        
+            raise ValueError(f"Authentication verification failed: {e}") from e
+
         # Return authentication result
         return {
-            "credential_id": bytes_to_base64url(auth_credential.raw_id),
+            "credential_id": bytes_to_base64url(verification.credential_id),
             "new_sign_count": verification.new_sign_count,
         }
 

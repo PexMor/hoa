@@ -18,12 +18,12 @@ from hoa.database import init_db
 def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application.
-    
+
     Returns:
         Configured FastAPI application
     """
     settings = get_settings()
-    
+
     # Create FastAPI app
     app = FastAPI(
         title="HOA - Heavily Over-engineered Authentication",
@@ -33,13 +33,13 @@ def create_app() -> FastAPI:
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
     )
-    
+
     # Initialize database
     init_db(
         database_url=settings.database_url,
         echo=(settings.log_level == "DEBUG"),
     )
-    
+
     # Add session middleware
     session_max_age = int(timedelta(days=settings.session_max_age_days).total_seconds())
     app.add_middleware(
@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
         https_only=settings.session_cookie_secure,
         same_site=settings.session_cookie_samesite,
     )
-    
+
     # Add CORS middleware if enabled
     if settings.cors_enabled and settings.cors_origins:
         app.add_middleware(
@@ -59,16 +59,16 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     # Include API routers
     app.include_router(auth.router)
     app.include_router(m2m.router)
     app.include_router(users.router)
     app.include_router(admin.router)
-    
+
     # Add utility endpoints
     from hoa.version import get_version_info
-    
+
     @app.get("/api/health")
     def health_check():
         """Health check endpoint with version info."""
@@ -76,12 +76,12 @@ def create_app() -> FastAPI:
             "status": "healthy",
             **get_version_info()
         }
-    
+
     @app.get("/api/version")
     def get_version():
         """Get version information."""
         return get_version_info()
-    
+
     @app.get("/api/config")
     def get_frontend_config():
         """Get frontend configuration."""
@@ -91,7 +91,7 @@ def create_app() -> FastAPI:
             "environment": settings.environment,
             **get_version_info()
         }
-    
+
     # Mount static files (built frontend) - must be last to avoid overriding API routes
     static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
@@ -100,10 +100,10 @@ def create_app() -> FastAPI:
             StaticFiles(directory=str(static_dir), html=True),
             name="static",
         )
-        
+
         # SPA fallback - serve index.html for all non-API routes
         from fastapi.responses import FileResponse
-        
+
         @app.exception_handler(404)
         async def custom_404_handler(request, exc):
             # Only serve index.html for non-API routes
@@ -114,6 +114,6 @@ def create_app() -> FastAPI:
             # Otherwise, return the original 404 response
             from fastapi.responses import JSONResponse
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
-    
+
     return app
 

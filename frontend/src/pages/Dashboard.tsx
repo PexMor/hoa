@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import type { AuthMethod } from '../types';
 import VersionInfo from '../components/VersionInfo';
+import AddAuthMethodModal from '../components/AddAuthMethodModal';
 
 interface RouteProps {
   path?: string;
@@ -21,6 +22,7 @@ export function Dashboard(_props?: RouteProps) {
   const [authMethods, setAuthMethods] = useState<AuthMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddAuthMethodModal, setShowAddAuthMethodModal] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -219,7 +221,7 @@ export function Dashboard(_props?: RouteProps) {
         
         <button
           className="btn btn-primary"
-          onClick={() => alert('Add authentication method coming soon!')}
+          onClick={() => setShowAddAuthMethodModal(true)}
         >
           + Add Authentication Method
         </button>
@@ -243,6 +245,16 @@ export function Dashboard(_props?: RouteProps) {
       <div style={{ marginTop: '2rem' }}>
         <VersionInfo />
       </div>
+
+      {/* Add Auth Method Modal */}
+      {showAddAuthMethodModal && (
+        <AddAuthMethodModal
+          onClose={() => setShowAddAuthMethodModal(false)}
+          onSuccess={() => {
+            loadAuthMethods(); // Reload auth methods
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -189,7 +189,7 @@ def test_finish_registration_invalid_credential_format(test_settings):
     """Test finishing registration with invalid credential format."""
     service = WebAuthnService(test_settings)
     
-    with pytest.raises(ValueError, match="Invalid credential format"):
+    with pytest.raises(ValueError, match="Registration verification failed"):
         service.finish_registration(
             credential={"invalid": "data"},
             expected_challenge="test_challenge",
@@ -217,7 +217,7 @@ def test_finish_authentication_invalid_credential_format(test_settings):
     """Test finishing authentication with invalid credential format."""
     service = WebAuthnService(test_settings)
     
-    with pytest.raises(ValueError, match="Invalid credential format"):
+    with pytest.raises(ValueError, match="Invalid public key format"):
         service.finish_authentication(
             credential={"invalid": "data"},
             expected_challenge="test_challenge",
