@@ -1,0 +1,16 @@
+{
+  "api_base_url": "/api",
+  "allowed_rps": [
+    {
+      "rp_id": "localhost",
+      "rp_name": "HOA Development",
+      "origins": [
+        "http://localhost:5173",
+        "http://localhost:8000"
+      ]
+    }
+  ],
+  "require_auth_method_approval": false,
+  "allow_self_service_auth": true
+}
+

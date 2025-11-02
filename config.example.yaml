@@ -1,0 +1,54 @@
+# HOA Configuration File
+# Copy this file to ~/.config/hoa/config.yaml and modify as needed
+# Configuration precedence: CLI args > Environment variables > This file
+
+# Server Configuration
+host: 127.0.0.1
+port: 8000
+reload: false  # Enable auto-reload for development
+
+# Database Configuration
+database_url: sqlite:///${HOME}/.config/hoa/hoa.db
+# For PostgreSQL: postgresql://user:password@localhost/hoa
+
+# Security
+secret_key: ""  # Auto-generated if not provided
+# admin_token loaded from ~/.config/hoa/admin.txt
+
+# JWT Configuration
+jwt_algorithm: RS256  # Options: RS256, HS256
+jwt_expiration_minutes: 60
+jwt_refresh_expiration_days: 30
+
+# WebAuthn Configuration
+# Format: rp_id|rp_name|origin1;origin2;origin3
+allowed_rps: localhost|Local Development|http://localhost:8000;http://127.0.0.1:8000
+
+# Authentication Settings
+require_auth_method_approval: false  # Set to true to require admin approval for new auth methods
+allow_self_service_auth: true  # Allow users to add auth methods themselves
+
+# OAuth2 Configuration (Planned/Stubbed)
+oauth2_google_client_id: ""
+oauth2_google_client_secret: ""
+oauth2_github_client_id: ""
+oauth2_github_client_secret: ""
+oauth2_auth0_domain: ""
+oauth2_auth0_client_id: ""
+oauth2_auth0_client_secret: ""
+
+# Application Settings
+environment: development  # Options: development, production
+log_level: INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Session Configuration
+session_max_age_days: 14
+session_cookie_secure: false  # Set to true in production with HTTPS
+session_cookie_httponly: true
+session_cookie_samesite: lax  # Options: strict, lax, none
+
+# CORS Configuration (if serving frontend from different origin)
+cors_enabled: false
+cors_origins: []
+# Example: ["http://localhost:3000", "https://myapp.example.com"]
+
